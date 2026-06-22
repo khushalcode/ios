@@ -48,17 +48,36 @@ jobs:
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "Provisioning profile installed:"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
-      - name: Build IPA
+      - name: Build Flutter (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Archive with Xcode
         run: |
-          flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/Runner.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="TalaboCustomerAppStore" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM=GYY8K392ZW
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/Runner.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: talabo-customer-ipa
-          path: build/ios/ipa/*.ipa
+          path: ${{ runner.temp }}/ipa/*.ipa
 
       - name: Clean up keychain
         if: always()
