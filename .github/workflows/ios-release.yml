@@ -1,27 +1,21 @@
 name: Flutter iOS Release
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 jobs:
   build-ios:
     runs-on: macos-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.2'
           channel: 'stable'
-
       - name: Install dependencies
         run: flutter pub get
-
       - name: Install Apple Certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -30,16 +24,13 @@ jobs:
         run: |
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A \
             -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
-
       - name: Install Provisioning Profile
         env:
           BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
@@ -48,27 +39,36 @@ jobs:
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
-
+      - name: Debug provisioning profile
+        run: |
+          echo "=== Installed profiles ==="
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
+          PP=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+          echo "=== Profile Name and UUID ==="
+          security cms -D -i "$PP" | grep -A1 "<key>Name</key>"
+          security cms -D -i "$PP" | grep -A1 "<key>UUID</key>"
+          security cms -D -i "$PP" | grep -A1 "<key>TeamIdentifier</key>"
       - name: Build Flutter (no codesign)
         run: flutter build ios --release --no-codesign
-
       - name: Archive with Xcode
         run: |
+          PP=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+          PP_UUID=$(security cms -D -i "$PP" | plutil -extract UUID raw -)
+          echo "Using profile UUID: $PP_UUID"
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath $RUNNER_TEMP/Runner.xcarchive \
             archive \
+            -destination "generic/platform=iOS" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM=GYY8K392ZW \
-            PROVISIONING_PROFILE_SPECIFIER="TalaboCustomerAppStore" \
-            -destination "generic/platform=iOS" \
+            PROVISIONING_PROFILE="$PP_UUID" \
             OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db" \
             ONLY_ACTIVE_ARCH=NO \
-            -allowProvisioningUpdates \
-            COMPILER_INDEX_STORE_ENABLE=NO
-
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            -skipPackageSigningValidation
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
@@ -76,15 +76,12 @@ jobs:
             -exportOptionsPlist ios/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/ipa \
             -allowProvisioningUpdates
-
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: talabo-customer-ipa
           path: ${{ runner.temp }}/ipa/*.ipa
-
       - name: Clean up keychain
         if: always()
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-
