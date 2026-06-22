@@ -67,8 +67,7 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db" \
             ONLY_ACTIVE_ARCH=NO \
             -allowProvisioningUpdates \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"="TalaboCustomerAppStore"
+            COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Export IPA
         run: |
