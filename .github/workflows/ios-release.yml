@@ -1,4 +1,4 @@
-﻿name: Flutter iOS Release
+name: Flutter iOS Release
 
 on:
   push:
@@ -88,3 +88,4 @@ jobs:
         if: always()
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+
