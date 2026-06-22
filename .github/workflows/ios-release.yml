@@ -48,8 +48,6 @@ jobs:
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "Provisioning profile installed:"
-          ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
       - name: Build Flutter (no codesign)
         run: flutter build ios --release --no-codesign
@@ -62,16 +60,23 @@ jobs:
             -archivePath $RUNNER_TEMP/Runner.xcarchive \
             archive \
             CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="TalaboCustomerAppStore" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM=GYY8K392ZW
+            DEVELOPMENT_TEAM=GYY8K392ZW \
+            PROVISIONING_PROFILE_SPECIFIER="TalaboCustomerAppStore" \
+            -destination "generic/platform=iOS" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db" \
+            ONLY_ACTIVE_ARCH=NO \
+            -allowProvisioningUpdates \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"="TalaboCustomerAppStore"
 
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/Runner.xcarchive \
             -exportOptionsPlist ios/ExportOptions.plist \
-            -exportPath $RUNNER_TEMP/ipa
+            -exportPath $RUNNER_TEMP/ipa \
+            -allowProvisioningUpdates
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
