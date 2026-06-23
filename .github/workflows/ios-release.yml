@@ -50,6 +50,14 @@ jobs:
           security cms -D -i "$PP" | grep -A1 "<key>TeamIdentifier</key>"
       - name: Build Flutter (no codesign)
         run: flutter build ios --release --no-codesign
+      - name: Debug Profile UUID
+        run: |
+          PP=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+          echo "Profile file: $PP"
+          security cms -D -i "$PP" | grep -A1 "UUID"
+          security cms -D -i "$PP" | grep -A1 "Name"
+          security cms -D -i "$PP" | grep -A1 "Entitlements" | head -20
+          security cms -D -i "$PP" | grep -E "aps-environment|applesignin"
       - name: Archive with Xcode
         run: |
           PP=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
