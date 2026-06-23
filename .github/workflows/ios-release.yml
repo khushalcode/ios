@@ -61,14 +61,15 @@ jobs:
             -archivePath $RUNNER_TEMP/Runner.xcarchive \
             archive \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Manual EXCLUDED_SOURCE_FILE_NAMES="" OTHER_SWIFT_FLAGS="" \
+            CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM=GYY8K392ZW \
-            PROVISIONING_PROFILE="$PP_UUID" \
+            "PROVISIONING_PROFILE[sdk=iphoneos*]=$PP_UUID" \
             OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db" \
             ONLY_ACTIVE_ARCH=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            -skipPackageSignatureValidation
+            -skipPackageSignatureValidation \
+            -skipPackagePluginValidation
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
@@ -85,4 +86,6 @@ jobs:
         if: always()
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+
+
 
